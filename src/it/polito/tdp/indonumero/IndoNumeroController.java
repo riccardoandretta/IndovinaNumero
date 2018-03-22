@@ -15,13 +15,8 @@ import javafx.scene.layout.HBox;
 
 public class IndoNumeroController {
 
-	private int NMAX = 100;
-	private int TMAX = 7; // 100/2 --> 50/2 --> 25/2 --> ... log2(100) = 7
-
-	private int segreto; // numero da indovinare
-	private int tentativi; // tentativi già fatti
-
-	private boolean inGame = false; // mi dice se c'e' una partita in corso
+	private Model model; // NON STO CREANDO IL MODELLO!! --> devo solo sapere dov'è --> qualcuno lo deve
+							// settare
 
 	@FXML // ResourceBundle that was given to the FXMLLoader
 	private ResourceBundle resources;
@@ -53,25 +48,24 @@ public class IndoNumeroController {
 	@FXML
 	void handleNuova(ActionEvent event) {
 
-		this.segreto = (int) (Math.random() * NMAX) + 1; // numero da indovinare
-
-		this.tentativi = 0;
-		this.inGame = true;
+		model.newGame();
 
 		// inizia la partita quindi devo abilitare/disabilitare i box
 		btnNuova.setDisable(true); // disabilito
 		boxGioco.setDisable(false); // abilito
-		txtCurr.setText(String.format("%d", this.tentativi)); // trasformo il numero in stringa
-		txtMax.setText(String.format("%d", this.TMAX));
+		txtCurr.setText(String.format("%d", model.getTentativi())); // trasformo il numero in stringa
+		txtMax.setText(String.format("%d", model.getTMAX()));
 		txtLog.clear();
 		txtTentativo.clear();
 
-		txtLog.setText(String.format("Indovina un numero tra %d e %d\n", 1, NMAX));
+		txtLog.setText(String.format("Indovina un numero tra %d e %d\n", 1, model.getNMAX()));
 	}
 
 	@FXML
-	void handleProva(ActionEvent event) {
+	void handleProva(ActionEvent event) { // il compito del controller è sempre quella di gestire l'interazione con
+											// l'utente
 
+		// rimane di pertinenza del controller
 		String numS = txtTentativo.getText();
 		// verifico che abbia inserito qualcosa
 		if (numS.length() == 0) {
@@ -79,44 +73,41 @@ public class IndoNumeroController {
 			return;
 		}
 		try {
-			int num = Integer.parseInt(numS);
+			int num = Integer.parseInt(numS); // rimane di pertinenza del controller (nel model non ho stringhe, ma
+												// interi e non devo gestire valori non "puliti");
+												// il model lavora con gli oggetti, non con le stringhe
 			// numero era effettivamente un intero
-			if (num < 1 || num > NMAX) {
+			// if (num < 1 || num > model.getNMAX()) { // questa riga l'ho già scritta nel
+			// model: sto definendo una regola
+			// di validità del dato, che può cambiare col tempo, in baase
+			// all'implementazione
+			if (!model.valoreValido(num)) {
 				txtLog.appendText("Valore fuori dall'intervallo consentito");
 				return;
 			}
-			if (num == this.segreto) {
+
+			int risultato = model.tentativo(num);
+			txtCurr.setText(String.format("%d", model.getTentativi())); // trasformo il numero in stringa
+
+			if (risultato == 0) {
 				// ha indovinato
 				txtLog.appendText("Hai vinto!\n");
-
-				// chiudi partita
-				boxGioco.setDisable(true);
-				btnNuova.setDisable(false);
-				this.inGame = false;
+			} else if (risultato < 0) {
+				txtLog.appendText("Troppo basso\n");
 			} else {
-				// tentativo errato
-				this.tentativi++;
-				txtCurr.setText(String.format("%d", this.tentativi));
+				txtLog.appendText("Troppo alto\n");
+			}
 
-				if (this.tentativi == this.TMAX) {
-					// hai perso
-					txtLog.appendText(String.format("Hai perso! Il numero era: %d\n", this.segreto));
-					// chiudi partita
-					boxGioco.setDisable(true);
-					btnNuova.setDisable(false);
-					this.inGame = false;
-
-				} else {
-					// sono ancora in gioco
-					if (num < segreto) {
-						// troppo basso
-						txtLog.appendText("Troppo basso\n");
-					} else {
-						// troppo alto
-						txtLog.appendText("Troppo alto\n");
-					}
+			if (!model.isInGame()) {
+				// la partita è finita (vittoria o sconfitta)
+				if (risultato != 0) {
+					txtLog.appendText("Hai perso\n");
+					txtLog.appendText(String.format("Il numero segreto era: %d\n", model.getSegreto()));
 				}
 
+				// "chiudi" la partita
+				boxGioco.setDisable(true);
+				btnNuova.setDisable(false);
 			}
 
 		} catch (NumberFormatException ex) {
@@ -136,5 +127,9 @@ public class IndoNumeroController {
 		assert btnProva != null : "fx:id=\"btnProva\" was not injected: check your FXML file 'IndoNumero.fxml'.";
 		assert txtLog != null : "fx:id=\"txtLog\" was not injected: check your FXML file 'IndoNumero.fxml'.";
 
+	}
+
+	public void setModel(Model model) { // Il model sarà settato dal MAIN
+		this.model = model;
 	}
 }
